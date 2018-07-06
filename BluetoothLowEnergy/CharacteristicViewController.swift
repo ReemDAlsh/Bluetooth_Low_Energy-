@@ -1,10 +1,14 @@
-///
+//
 //  CharacteristicViewController.swift
-//  ReadCharacteristic
+//  BluetoothLowEnergy
 //
-//  Created by Adonis Gaitatzis on 11/22/16.
-//  Copyright © 2016 Adonis Gaitatzis. All rights reserved.
+//  Created by Reem alsharif on 4/26/18.
+//  Copyright © 2018 Reem alsharif. All rights reserved.
 //
+
+import Foundation
+
+import Foundation
 
 import UIKit
 import CoreBluetooth
@@ -22,8 +26,8 @@ class CharacteristicViewController: UIViewController, CBCentralManagerDelegate, 
     @IBOutlet weak var characteristicValueText: UITextView!
     @IBOutlet weak var writeCharacteristicButton: UIButton!
     @IBOutlet weak var writeCharacteristicText: UITextField!
-    @IBOutlet weak var subscribeToNotificationsSwitch: UISwitch!
     @IBOutlet weak var subscribeToNotificationLabel: UILabel!
+    @IBOutlet weak var subscribeToNotificationsSwitch: UISwitch!
     
     
     // MARK: Connected devices
@@ -57,6 +61,7 @@ class CharacteristicViewController: UIViewController, CBCentralManagerDelegate, 
         
     }
     
+    
     /**
      Load UI elements
      */
@@ -73,21 +78,20 @@ class CharacteristicViewController: UIViewController, CBCentralManagerDelegate, 
             characteristicValueText.isHidden = true
         }
         
-        // Characterisic is no writeable
+        // characteristic is not writeable
         if !BlePeripheral.isCharacteristic(isWriteable: connectedCharacteristic) {
             writeCharacteristicText.isHidden = true
             writeCharacteristicButton.isHidden = true
         }
         
-        // Characterisic is notifiable
+        // characteristic is not writeable
         if !BlePeripheral.isCharacteristic(isNotifiable: connectedCharacteristic) {
             subscribeToNotificationsSwitch.isHidden = true
             subscribeToNotificationLabel.isHidden = true
-        } else {
-            blePeripheral.subscribeTo(characteristic: connectedCharacteristic)
         }
         
     }
+    
     
     /**
      User touched Read button.  Request to read the Characteristic
@@ -107,9 +111,15 @@ class CharacteristicViewController: UIViewController, CBCentralManagerDelegate, 
         writeCharacteristicButton.isEnabled = false
         if let stringValue = writeCharacteristicText.text {
             print(stringValue)
-            blePeripheral.writeValue(value: stringValue, to: connectedCharacteristic)
-            writeCharacteristicText.text = ""
+            if stringValue.isValidHexNumber() {
+                blePeripheral.writeValue(value: stringValue, to: connectedCharacteristic)
+                writeCharacteristicText.text = ""
+            } else {
+                showAlert()
+            }
+            
         }
+        
     }
     
     /**
@@ -123,6 +133,7 @@ class CharacteristicViewController: UIViewController, CBCentralManagerDelegate, 
         } else {
             blePeripheral.unsubscribeFrom(characteristic: connectedCharacteristic)
         }
+        
     }
     
     
@@ -156,13 +167,14 @@ class CharacteristicViewController: UIViewController, CBCentralManagerDelegate, 
     func blePeripheral(characteristicRead stringValue: String, characteristic: CBCharacteristic, blePeripheral: BlePeripheral) {
         print(stringValue)
         
+      print(stringValue)
+        
+        
         readCharacteristicButton.isEnabled =  true
         characteristicValueText.insertText(stringValue + "\n")
-        
         let stringLength = characteristicValueText.text.characters.count
         characteristicValueText.scrollRangeToVisible(NSMakeRange(stringLength-1, 0))
     }
-    
     
     
     // MARK: CBCentralManagerDelegate
@@ -217,6 +229,44 @@ class CharacteristicViewController: UIViewController, CBCentralManagerDelegate, 
         }
     }
     
+    func showAlert() {
+        let alertController = UIAlertController(title: "Valid Hex", message: "Please enter valid Hex Values", preferredStyle: .alert)
+        
+        let defaultAction = UIAlertAction(title: "OK", style: .default, handler: nil)
+        alertController.addAction(defaultAction)
+        
+        present(alertController, animated: true, completion: nil)
+    }
     
+    func hexToString(hex: String) -> String? {
+        guard hex.characters.count % 2 == 0 else {
+            return nil
+        }
+        
+        var bytes = [CChar]()
+        
+        var startIndex = hex.index(hex.startIndex, offsetBy: 2)
+        while startIndex < hex.endIndex {
+            let endIndex = hex.index(startIndex, offsetBy: 2)
+            let substr = hex[startIndex..<endIndex]
+            
+            if let byte = Int8(substr, radix: 16) {
+                bytes.append(byte)
+            } else {
+                return nil
+            }
+            
+            startIndex = endIndex
+        }
+        
+        bytes.append(0)
+        return String(cString: bytes)
+    }
 }
-
+extension Data
+{
+    func toString() -> String
+    {
+        return String(data: self, encoding: .utf8)!
+    }
+}
